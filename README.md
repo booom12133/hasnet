@@ -21,7 +21,13 @@ Recommended environment:
 
 ## Dataset
 
-Download DvXray from the official source and place/symlink the images as:
+This code uses the public DvXray dataset.
+
+Please download DvXray from the official repository:
+
+https://github.com/Mbwslib/DvXray
+
+After downloading, place or symlink the dataset images as:
 
 ```text
 data/DvXray/
