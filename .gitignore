@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.venv/
+venv/
+.env
+
+# Training artifacts
+runs/
+checkpoints/
+outputs/
+log/
+*.pth
+*.pt
+*.ckpt
+*.npz
+*.npy
+*.csv
+*.json
+
+# Datasets
+/data/DvXray/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
