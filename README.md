@@ -74,4 +74,6 @@ The source code needed to train and evaluate the proposed full model is availabl
 
 ## License
 
-Please add a license after confirming the licensing status of all dependencies and any reused code. MIT or Apache-2.0 is usually suitable for academic code if all included code is original or license-compatible.
+The source code in this repository is released under the MIT License. See [LICENSE](LICENSE) for details.
+
+This license applies only to the original source code provided in this repository. The DvXray dataset is not included and remains subject to the license and terms specified by its original providers.
