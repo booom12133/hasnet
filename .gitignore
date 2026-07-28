@@ -1,26 +1,32 @@
 # Python
 __pycache__/
 *.py[cod]
-*.so
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
 .venv/
 venv/
 .env
 
-# Training artifacts
-runs/
-checkpoints/
-outputs/
+# Local/internal work
+.codex_tmp_*
+scripe/
 log/
+analysis_outputs/
+
+# Dataset and training artifacts
+/data/
+/outputs/
+/checkpoints/
+/runs/
 *.pth
 *.pt
 *.ckpt
 *.npz
 *.npy
-*.csv
-*.json
 
-# Datasets
-/data/DvXray/
+# Generated results are ignored, manuscript-transcribed results are tracked.
+/results/generated/
 
 # IDE / OS
 .idea/

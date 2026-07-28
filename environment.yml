@@ -1,0 +1,20 @@
+name: hasnet
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pytorch=2.5.1
+  - torchvision=0.20.1
+  - pytorch-cuda=12.1
+  - pip
+  - pip:
+      - timm==1.0.22
+      - numpy==1.26.4
+      - pillow==11.1.0
+      - PyYAML==6.0.2
+      - tqdm==4.67.1
+      - thop==0.1.1.post2209072238
+      - matplotlib==3.10.0
+      - pytest==8.3.4

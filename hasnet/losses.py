@@ -1,4 +1,4 @@
-"""Loss functions for dual-view multi-label recognition."""
+"""Losses used in every retrained experiment."""
 
 import torch
 from torch import nn
@@ -24,7 +24,15 @@ class AsymmetricLoss(nn.Module):
         gamma = self.gamma_pos * targets + self.gamma_neg * (1.0 - targets)
         return -loss * (1.0 - pt).clamp(min=self.eps).pow(gamma)
 
-    def forward(self, logits: torch.Tensor, targets: torch.Tensor, aux_logits=None, alpha: float = 0.7) -> torch.Tensor:
+    def forward(
+        self,
+        logits: torch.Tensor,
+        targets: torch.Tensor,
+        aux_logits: tuple[torch.Tensor, torch.Tensor] | None = None,
+        alpha: float = 0.7,
+    ) -> torch.Tensor:
+        if not 0.0 <= alpha <= 1.0:
+            raise ValueError("alpha must be in [0, 1]")
         main = self._loss(logits, targets)
         if aux_logits is None:
             return main.mean()

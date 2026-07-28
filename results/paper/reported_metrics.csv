@@ -1,0 +1,105 @@
+table,method,metric,value,unit
+main,OL-only,params,27.83,M
+main,OL-only,flops,5.830,G
+main,OL-only,test_mAP,0.8693,fraction
+main,OL-only,val_mAP,0.8773,fraction
+main,SD-only,params,27.83,M
+main,SD-only,flops,5.830,G
+main,SD-only,test_mAP,0.7661,fraction
+main,SD-only,val_mAP,0.7872,fraction
+main,Late Fusion Avg,params,55.66,M
+main,Late Fusion Avg,flops,11.659,G
+main,Late Fusion Avg,test_mAP,0.8828,fraction
+main,Late Fusion Avg,val_mAP,0.8916,fraction
+main,Late Fusion Max,params,55.66,M
+main,Late Fusion Max,flops,11.659,G
+main,Late Fusion Max,test_mAP,0.8892,fraction
+main,Late Fusion Max,val_mAP,0.8974,fraction
+main,Plain,params,27.83,M
+main,Plain,flops,11.659,G
+main,Plain,test_mAP,0.8921,fraction
+main,Plain,val_mAP,0.8955,fraction
+main,Feature Fusion,params,27.84,M
+main,Feature Fusion,flops,11.659,G
+main,Feature Fusion,test_mAP,0.8937,fraction
+main,Feature Fusion,val_mAP,0.9024,fraction
+main,CHR,params,32.75,M
+main,CHR,flops,13.685,G
+main,CHR,test_mAP,0.8906,fraction
+main,CHR,val_mAP,0.9003,fraction
+main,SXMNet,params,29.63,M
+main,SXMNet,flops,17.800,G
+main,SXMNet,test_mAP,0.9036,fraction
+main,SXMNet,val_mAP,0.8941,fraction
+main,DOAM,params,27.85,M
+main,DOAM,flops,14.766,G
+main,DOAM,test_mAP,0.8972,fraction
+main,DOAM,val_mAP,0.9021,fraction
+main,MVCNN,params,28.48,M
+main,MVCNN,flops,12.738,G
+main,MVCNN,test_mAP,0.8739,fraction
+main,MVCNN,val_mAP,0.8824,fraction
+main,GVCNN,params,27.84,M
+main,GVCNN,flops,11.678,G
+main,GVCNN,test_mAP,0.8852,fraction
+main,GVCNN,val_mAP,0.8973,fraction
+main,AHCR,params,29.45,M
+main,AHCR,flops,11.887,G
+main,AHCR,test_mAP,0.8950,fraction
+main,AHCR,val_mAP,0.8918,fraction
+main,DAGNet,params,29.53,M
+main,DAGNet,flops,12.356,G
+main,DAGNet,test_mAP,0.9187,fraction
+main,DAGNet,val_mAP,0.9235,fraction
+main,Ours,params,30.97,M
+main,Ours,flops,12.123,G
+main,Ours,test_mAP,0.9396,fraction
+main,Ours,val_mAP,0.9477,fraction
+core_ablation,Full model,val_mAP,0.9477,fraction
+core_ablation,w/o Stage-1 calibration,val_mAP,0.9440,fraction
+core_ablation,base fusion,val_mAP,0.9361,fraction
+core_ablation,SRC MAIN-only,val_mAP,0.9322,fraction
+dcaf_ablation,CVFUSE only,val_mAP,0.9362,fraction
+dcaf_ablation,CVFUSE + LKA,val_mAP,0.9402,fraction
+dcaf_ablation,CVFUSE + CoordAtt,val_mAP,0.9332,fraction
+dcaf_ablation,DCAF full,val_mAP,0.9477,fraction
+src_ablation,MAIN-only,val_mAP,0.9322,fraction
+src_ablation,MAIN-only,Macro-Brier,0.009195,fraction
+src_ablation,MAIN-only,Macro-NLL,0.0589,nats
+src_ablation,MAIN-only,Macro-ECE,0.0517,fraction
+src_ablation,MAIN + BiFPN,val_mAP,0.9332,fraction
+src_ablation,MAIN + BiFPN,Macro-Brier,0.008746,fraction
+src_ablation,MAIN + BiFPN,Macro-NLL,0.0561,nats
+src_ablation,MAIN + BiFPN,Macro-ECE,0.0468,fraction
+src_ablation,MAIN + AUX/GATE,val_mAP,0.9358,fraction
+src_ablation,MAIN + AUX/GATE,Macro-Brier,0.008301,fraction
+src_ablation,MAIN + AUX/GATE,Macro-NLL,0.0454,nats
+src_ablation,MAIN + AUX/GATE,Macro-ECE,0.0442,fraction
+src_ablation,MAIN-only + TS,val_mAP,0.9322,fraction
+src_ablation,MAIN-only + TS,Macro-Brier,0.008903,fraction
+src_ablation,MAIN-only + TS,Macro-NLL,0.0582,nats
+src_ablation,MAIN-only + TS,Macro-ECE,0.0473,fraction
+src_ablation,Full SRC,val_mAP,0.9477,fraction
+src_ablation,Full SRC,Macro-Brier,0.007177,fraction
+src_ablation,Full SRC,Macro-NLL,0.0223,nats
+src_ablation,Full SRC,Macro-ECE,0.0340,fraction
+robustness,Plain,clean_mAP,0.8955,fraction
+robustness,Plain,OL_missing_retention,77.09,percent
+robustness,Plain,SD_missing_retention,95.80,percent
+robustness,Plain,OL_blur_retention,93.04,percent
+robustness,Plain,SD_blur_retention,96.47,percent
+robustness,AHCR,clean_mAP,0.8918,fraction
+robustness,AHCR,OL_missing_retention,78.87,percent
+robustness,AHCR,SD_missing_retention,93.77,percent
+robustness,AHCR,OL_blur_retention,93.90,percent
+robustness,AHCR,SD_blur_retention,94.54,percent
+robustness,DAGNet,clean_mAP,0.9235,fraction
+robustness,DAGNet,OL_missing_retention,82.87,percent
+robustness,DAGNet,SD_missing_retention,96.40,percent
+robustness,DAGNet,OL_blur_retention,97.59,percent
+robustness,DAGNet,SD_blur_retention,98.15,percent
+robustness,Ours,clean_mAP,0.9477,fraction
+robustness,Ours,OL_missing_retention,83.64,percent
+robustness,Ours,SD_missing_retention,97.27,percent
+robustness,Ours,OL_blur_retention,97.62,percent
+robustness,Ours,SD_blur_retention,98.68,percent

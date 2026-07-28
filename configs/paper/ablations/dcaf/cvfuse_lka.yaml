@@ -1,0 +1,5 @@
+base: ../../full_convnext.yaml
+name: ablation_dcaf_cvfuse_lka
+model:
+  use_coordatt: false
+  use_lka: true

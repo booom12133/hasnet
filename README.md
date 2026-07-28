@@ -1,79 +1,181 @@
-# Dual-View X-ray Multi-Label Recognition
+# HASNet: reproducible dual-view X-ray multi-label recognition
 
-This repository contains the cleaned implementation of the proposed **full model** for the paper:
+Official implementation for:
 
-> Dual-View X-ray Multi-Label Recognition via Role-Separated Cross-View Fusion and Decision-Level Refinement
+> **Dual-View X-ray Multi-Label Recognition via Role-Separated Cross-View Fusion and Decision-Level Refinement**
+>
+> Huizhen Jia, Cailong Zhou, Peng Fu, and Tonghan Wang
 
-The released code intentionally keeps only the proposed full model: shared dual-stream backbone, VSC pre-fusion calibration, DCAF cross-view semantic fusion, and SRC-Head decision-level refinement. Baseline models, ablation switches, temporary scripts, logs, caches, and third-party copied repositories are not included.
+HASNet separates shared dual-view representation, high-level cross-view fusion
+(VSC + DCAF), and decision-level refinement (SRC-Head). This release contains
+the complete proposed model, paper ablations, original reference baselines,
+fixed DvXray splits, DDP/EMA training, calibration, robustness, profiling, and
+three-seed aggregation code.
 
-## Requirements
+## Reproducibility scope
+
+- Full HASNet and all VSC/DCAF/SRC ablations are implemented through one model
+  class and one training engine.
+- The paper protocol is encoded in
+  [`configs/paper/full_convnext.yaml`](configs/paper/full_convnext.yaml).
+- Evaluation uses no test-time augmentation.
+- Checkpoints record the resolved config, split hashes, seed, environment,
+  raw/EMA weights, optimizer, scaler, scheduler, epoch, and Git commit.
+- Dataset images and third-party implementations are not redistributed.
+  See [`docs/THIRD_PARTY_BASELINES.md`](docs/THIRD_PARTY_BASELINES.md).
+
+## Installation
+
+Python 3.10 is recommended.
+
+```bash
+conda env create -f environment.yml
+conda activate hasnet
+pip install -e .[dev]
+```
+
+Alternatively:
 
 ```bash
 pip install -r requirements.txt
+pip install -e .
 ```
 
-Recommended environment:
+Verify the installation before training:
 
-- Python 3.10+
-- PyTorch 2.0+
-- torchvision 0.15+
-- CUDA-enabled GPU for training
+```bash
+python scripts/check_splits.py
+pytest -q
+python scripts/profile_model.py --config configs/paper/full_convnext.yaml
+```
+
+The full ConvNeXt-Tiny configuration reports approximately **30.97 M**
+parameters and **12.123 G** FLOPs for one synchronized 256×256 OL/SD pair.
+FLOPs are measured with THOP. The script separately reports the direct
+`model.parameters()` total and THOP's module-hook parameter total.
 
 ## Dataset
 
-This code uses the public DvXray dataset.
-
-Please download DvXray from the official repository:
-
-https://github.com/Mbwslib/DvXray
-
-After downloading, place or symlink the dataset images as:
+Download DvXray from the
+[official repository](https://github.com/Mbwslib/DvXray) and place the images
+under:
 
 ```text
 data/DvXray/
 ```
 
-The provided split files use the following line format:
+The expected layout is:
 
 ```text
-OL_image_path#SD_image_path#15-dim_multi_hot_label#OL_boxes#SD_boxes
+HASNet/
+├── data/
+│   └── DvXray/
+│       ├── N03892_OL.png
+│       ├── N03892_SD.png
+│       └── ...
+└── splits/
+    └── dvxray/
+        ├── train.txt
+        ├── val.txt
+        └── test.txt
 ```
 
-Only the OL/SD image paths and multi-label targets are used by this image-level recognition code.
+Only paths and multi-hot labels are consumed. Bounding-box fields remain in
+the split files for traceability but are not used for image-level recognition.
+The released split sizes are 11,200/3,200/1,600 and are checked for pair-level
+overlap and SHA-256 integrity by `scripts/check_splits.py`.
 
-## Training
+## Exact training protocol
+
+The headline configuration uses:
+
+- two RTX 4090 GPUs with PyTorch DDP;
+- ConvNeXt-Tiny with ImageNet-1K initialization;
+- independently sampled OL/SD training augmentation;
+- 256×256 inputs, 60 epochs, global batch size 64;
+- AdamW, learning rate `7e-5`, weight decay `1e-3`;
+- six-epoch linear warmup and epoch-wise cosine annealing;
+- AMP, gradient clipping at 5.0, and EMA;
+- ASL with `gamma_neg=4`, `gamma_pos=0`, and clipping `0.05`;
+- auxiliary loss weight `alpha=0.7`;
+- one 256-channel BiFPN layer;
+- seeds 3407, 3408, and 3409 for the canonical release runs.
+
+Train one seed:
 
 ```bash
-python train_full.py --data_root . --epochs 60 --batch_size 64 --img_size 256
+torchrun --standalone --nproc_per_node=2 scripts/train.py \
+  --config configs/paper/full_convnext.yaml \
+  --seed 3408 \
+  --data-root . \
+  --output-dir outputs
 ```
 
-The default configuration follows the paper's full model setting:
+Print the canonical three-seed command matrix:
 
-- ConvNeXt-Tiny shared dual-stream backbone
-- image size 256
-- ASL loss with gamma_neg=4, gamma_pos=0, clip=0.05
-- AdamW, lr=7e-5, weight decay=1e-3
-- auxiliary loss alpha=0.7
-- VSC + DCAF + SRC-Head enabled by design
+```bash
+python scripts/reproduce.py --group full
+```
+
+Execute it:
+
+```bash
+python scripts/reproduce.py --group full --execute
+```
+
+Available groups are `full`, `backbones`, `core_ablation`,
+`dcaf_ablation`, and `src_ablation`. Aggregate completed runs with:
+
+```bash
+python scripts/aggregate_runs.py \
+  --input-dir outputs \
+  --output results/generated/three_seed_summary.csv
+```
 
 ## Evaluation
 
 ```bash
-python train_full.py --eval --checkpoint checkpoints/best.pth --data_root .
+python scripts/evaluate.py \
+  --config configs/paper/full_convnext.yaml \
+  --checkpoint outputs/hasnet_full_convnext/seed_3408/best.pt \
+  --split test \
+  --weights ema
 ```
 
-## Params/FLOPs
+This writes both a JSON summary and an NPZ archive containing logits,
+probabilities, targets, sample indices, and provenance metadata.
+
+## Paper analysis
+
+Calibration metrics are class-wise Brier, binary NLL, and 10-bin ECE over the
+full `[0,1]` range, followed by macro averaging.
 
 ```bash
-python scripts/profile_model.py --backbone convnext --img_size 256
+python scripts/calibrate.py \
+  --protocol crossfit \
+  --fit-predictions outputs/evaluation/main_only_val_clean.npz \
+  --folds 5 --seed 3408
 ```
 
-## Code availability statement
+For a fully held-out calibration analysis, supply separate fitting and
+evaluation archives with `--protocol heldout`.
 
-The source code needed to train and evaluate the proposed full model is available in this repository. The DvXray dataset is publicly available from its original repository. Trained weights are not included by default.
+Robustness uses exactly five validation conditions: clean, OL missing, SD
+missing, OL blur, and SD blur. Missing sets the selected model-input tensor to
+zero; blur uses a fixed 21×21 Gaussian kernel with sigma 5.
 
-## License
+```bash
+python scripts/robustness.py \
+  --config configs/paper/full_convnext.yaml \
+  --checkpoint outputs/hasnet_full_convnext/seed_3408/best.pt
+```
 
-The source code in this repository is released under the MIT License. See [LICENSE](LICENSE) for details.
+See [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md) for the
+configuration-to-table map and required evidence for an archival release.
 
-This license applies only to the original source code provided in this repository. The DvXray dataset is not included and remains subject to the license and terms specified by its original providers.
+## License and citation
+
+Original code in this repository is licensed under the MIT License. DvXray and
+third-party methods retain their own terms. See
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and
+[`CITATION.cff`](CITATION.cff).

@@ -1,0 +1,59 @@
+name: hasnet_full_convnext
+seed: 3408
+
+data:
+  root: .
+  splits:
+    train: splits/dvxray/train.txt
+    val: splits/dvxray/val.txt
+    test: splits/dvxray/test.txt
+  num_classes: 15
+  image_size: 256
+  num_workers: 32
+  pin_memory: true
+  persistent_workers: true
+  paired_augmentation: independent
+
+model:
+  name: hasnet
+  backbone: convnext
+  pretrained: true
+  fusion_dim_index: 2
+  fpn_channels: 256
+  act: silu
+  use_vsc: true
+  use_coordatt: true
+  use_lka: true
+  use_bifpn: true
+  use_aux_gate: true
+
+loss:
+  name: asymmetric
+  gamma_neg: 4.0
+  gamma_pos: 0.0
+  clip: 0.05
+  aux_alpha: 0.7
+
+train:
+  epochs: 60
+  global_batch_size: 64
+  optimizer: adamw
+  learning_rate: 0.00007
+  weight_decay: 0.001
+  grad_clip: 5.0
+  amp: true
+  deterministic: false
+  ema:
+    enabled: true
+    decay: 0.9999
+    warmup_updates: 2000
+  scheduler:
+    name: paper_v1
+    warmup_epochs: 6
+    eta_min_ratio: 0.01
+
+evaluation:
+  threshold: 0.5
+  calibration_bins: 10
+  tta: false
+  checkpoint_weights: ema

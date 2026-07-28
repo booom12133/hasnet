@@ -1,0 +1,6 @@
+base: ../full_convnext.yaml
+name: baseline_plain
+model:
+  name: plain
+  backbone: convnext
+  pretrained: true
