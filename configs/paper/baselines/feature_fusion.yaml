@@ -1,0 +1,6 @@
+base: ../full_convnext.yaml
+name: baseline_feature_fusion
+model:
+  name: feature_fusion
+  backbone: convnext
+  pretrained: true

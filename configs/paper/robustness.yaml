@@ -1,0 +1,20 @@
+split: val
+conditions:
+  - name: clean
+    kind: clean
+  - name: ol_missing
+    kind: missing
+    view: ol
+  - name: sd_missing
+    kind: missing
+    view: sd
+  - name: ol_blur
+    kind: blur
+    view: ol
+    kernel_size: 21
+    sigma: 5.0
+  - name: sd_blur
+    kind: blur
+    view: sd
+    kernel_size: 21
+    sigma: 5.0

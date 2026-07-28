@@ -1,0 +1,5 @@
+base: ../../full_convnext.yaml
+name: ablation_src_main_bifpn
+model:
+  use_bifpn: true
+  use_aux_gate: false

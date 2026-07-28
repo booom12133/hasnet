@@ -1,0 +1,24 @@
+canonical_seeds: [3407, 3408, 3409]
+groups:
+  full:
+    - configs/paper/full_convnext.yaml
+  backbones:
+    - configs/paper/backbones/resnet50.yaml
+    - configs/paper/backbones/resnext50.yaml
+    - configs/paper/backbones/regnetx_3_2gf.yaml
+    - configs/paper/full_convnext.yaml
+  core_ablation:
+    - configs/paper/full_convnext.yaml
+    - configs/paper/ablations/core/no_vsc.yaml
+    - configs/paper/ablations/core/base_fusion.yaml
+    - configs/paper/ablations/core/main_only.yaml
+  dcaf_ablation:
+    - configs/paper/ablations/dcaf/cvfuse_only.yaml
+    - configs/paper/ablations/dcaf/cvfuse_lka.yaml
+    - configs/paper/ablations/dcaf/cvfuse_coordatt.yaml
+    - configs/paper/full_convnext.yaml
+  src_ablation:
+    - configs/paper/ablations/src/main_only.yaml
+    - configs/paper/ablations/src/main_bifpn.yaml
+    - configs/paper/ablations/src/main_aux_gate.yaml
+    - configs/paper/full_convnext.yaml

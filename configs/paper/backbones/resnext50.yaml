@@ -1,0 +1,4 @@
+base: ../full_convnext.yaml
+name: hasnet_full_resnext50
+model:
+  backbone: resnext50

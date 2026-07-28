@@ -1,0 +1,4 @@
+base: ../../full_convnext.yaml
+name: ablation_core_no_vsc
+model:
+  use_vsc: false

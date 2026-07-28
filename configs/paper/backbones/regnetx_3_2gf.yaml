@@ -1,0 +1,4 @@
+base: ../full_convnext.yaml
+name: hasnet_full_regnetx_3_2gf
+model:
+  backbone: regnetx_3_2gf

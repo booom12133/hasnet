@@ -1,8 +1,9 @@
-"""Full model for dual-view X-ray multi-label recognition.
+"""HASNet and the exact architectural ablations reported in the paper.
 
-This file only keeps the proposed full model used in the paper:
-shared dual-stream backbone + VSC + DCAF + SRC-Head.
-Ablation switches, baseline models, and temporary experimental modules are intentionally removed.
+The default constructor is the complete model used for the headline results:
+shared dual-stream backbone + VSC + DCAF + SRC-Head.  Explicit switches are
+kept here (instead of maintaining divergent copies) so every ablation uses the
+same backbone, preprocessing, loss, and training engine.
 """
 
 from __future__ import annotations
@@ -95,7 +96,9 @@ class CSPRepLayer(nn.Module):
     def __init__(self, in_channels: int, out_channels: int, expansion: float = 1.0, act: str = "silu"):
         super().__init__()
         hidden_channels = int(out_channels * expansion)
-        self.local_branch = DWConv(in_channels, hidden_channels, act=act)
+        # The paper implementation keeps the depthwise branch linear and
+        # applies the non-linearity only in the 1x1 channel branch.
+        self.local_branch = DWConv(in_channels, hidden_channels, act="identity")
         self.channel_branch = ConvBNAct(in_channels, hidden_channels, 1, act=act)
         self.project = ConvBNAct(hidden_channels, out_channels, 1, act=act) if hidden_channels != out_channels else nn.Identity()
 
@@ -106,18 +109,24 @@ class CSPRepLayer(nn.Module):
 class CVFUSE(nn.Module):
     """Compact cross-view fusion block inside DCAF."""
 
-    def __init__(self, in_channels: int, out_channels: int, depth_mult: int = 3, act: str = "silu"):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        depth_mult: int = 3,
+        act: str = "silu",
+        use_coordatt: bool = True,
+    ):
         super().__init__()
         view_channels = in_channels // 2
-        self.view_refine = CoordAtt(view_channels, view_channels)
-        self.bn = nn.BatchNorm2d(in_channels)
+        self.view_refine = CoordAtt(view_channels, view_channels) if use_coordatt else nn.Identity()
         self.fuse = CSPRepLayer(in_channels, out_channels, expansion=1.0, act=act)
 
     def forward(self, feat_ol: torch.Tensor, feat_sd: torch.Tensor) -> torch.Tensor:
         feat_ol = self.view_refine(feat_ol)
         feat_sd = self.view_refine(feat_sd)
         fused = torch.cat([feat_ol, feat_sd], dim=1).contiguous()
-        return self.fuse(self.bn(fused))
+        return self.fuse(fused)
 
 
 class LKA(nn.Module):
@@ -258,8 +267,12 @@ def build_backbone(name: str = "convnext", pretrained: bool = True):
     return stem, layer1, layer2, layer3, layer4, channels
 
 
-class FullModel(nn.Module):
-    """Proposed full model: Shared backbone + VSC + DCAF + SRC-Head."""
+class HASNet(nn.Module):
+    """Role-separated dual-view model.
+
+    Defaults instantiate the exact full model.  Ablation switches correspond
+    directly to the YAML files under ``configs/paper/ablations``.
+    """
 
     def __init__(
         self,
@@ -269,30 +282,56 @@ class FullModel(nn.Module):
         fusion_dim_index: int = 2,
         fpn_channels: int = 256,
         act: str = "silu",
+        use_vsc: bool = True,
+        use_coordatt: bool = True,
+        use_lka: bool = True,
+        use_bifpn: bool = True,
+        use_aux_gate: bool = True,
     ):
         super().__init__()
+        self.model_config = {
+            "num_classes": num_classes,
+            "backbone": backbone,
+            "fusion_dim_index": fusion_dim_index,
+            "fpn_channels": fpn_channels,
+            "use_vsc": use_vsc,
+            "use_coordatt": use_coordatt,
+            "use_lka": use_lka,
+            "use_bifpn": use_bifpn,
+            "use_aux_gate": use_aux_gate,
+        }
         self.stem, self.layer1, self.layer2, self.layer3, self.layer4, channels = build_backbone(backbone, pretrained)
         top_channels = channels[3]
         fusion_dim = channels[fusion_dim_index]
 
         # Stage 1: lightweight pre-fusion calibration
-        self.vsc = ViewStatCalibrator(top_channels)
+        self.vsc = ViewStatCalibrator(top_channels) if use_vsc else nn.Identity()
 
         # Stage 2: DCAF high-level semantic fusion
-        self.dcaf = CVFUSE(top_channels * 2, fusion_dim, depth_mult=3, act=act)
-        self.lka = LKABlock(fusion_dim)
+        self.dcaf = CVFUSE(
+            top_channels * 2,
+            fusion_dim,
+            depth_mult=3,
+            act=act,
+            use_coordatt=use_coordatt,
+        )
+        self.lka = LKABlock(fusion_dim) if use_lka else nn.Identity()
         self.main_classifier = nn.Sequential(nn.AdaptiveAvgPool2d(1), nn.Flatten(), nn.Linear(fusion_dim, num_classes))
 
         # Stage 3: SRC-Head, view-specific gate and compact multi-scale support
-        self.view_classifier = nn.Sequential(nn.AdaptiveAvgPool2d(1), nn.Flatten(), nn.Linear(top_channels, num_classes))
-        self.logit_gate_scale = nn.Parameter(torch.tensor(0.0))
+        self.use_aux_gate = use_aux_gate
+        if use_aux_gate:
+            self.view_classifier = nn.Sequential(nn.AdaptiveAvgPool2d(1), nn.Flatten(), nn.Linear(top_channels, num_classes))
+            self.logit_gate_scale = nn.Parameter(torch.tensor(0.0))
 
-        self.p3_reduce = nn.Sequential(nn.Conv2d(channels[1] * 2, fpn_channels, 1, bias=False), nn.BatchNorm2d(fpn_channels), get_activation(act))
-        self.p4_reduce = nn.Sequential(nn.Conv2d(channels[2] * 2, fpn_channels, 1, bias=False), nn.BatchNorm2d(fpn_channels), get_activation(act))
-        self.p5_reduce = nn.Sequential(nn.Conv2d(channels[3] * 2, fpn_channels, 1, bias=False), nn.BatchNorm2d(fpn_channels), get_activation(act))
-        self.bifpn = BiFPN(fpn_channels, act=act)
-        self.bifpn_classifier = nn.Linear(fpn_channels * 3, num_classes)
-        self.fpn_logit_scale = nn.Parameter(torch.tensor(0.1))
+        self.use_bifpn = use_bifpn
+        if use_bifpn:
+            self.p3_reduce = nn.Sequential(nn.Conv2d(channels[1] * 2, fpn_channels, 1, bias=False), nn.BatchNorm2d(fpn_channels), get_activation(act))
+            self.p4_reduce = nn.Sequential(nn.Conv2d(channels[2] * 2, fpn_channels, 1, bias=False), nn.BatchNorm2d(fpn_channels), get_activation(act))
+            self.p5_reduce = nn.Sequential(nn.Conv2d(channels[3] * 2, fpn_channels, 1, bias=False), nn.BatchNorm2d(fpn_channels), get_activation(act))
+            self.bifpn = BiFPN(fpn_channels, act=act)
+            self.bifpn_classifier = nn.Linear(fpn_channels * 3, num_classes)
+            self.fpn_logit_scale = nn.Parameter(torch.tensor(0.1))
 
     def _extract_features(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         x = self.stem(x)
@@ -312,35 +351,46 @@ class FullModel(nn.Module):
         fused = self.lka(self.dcaf(f4_ol_cal, f4_sd_cal))
         z_main = self.main_classifier(fused)
 
+        logits = z_main
+        aux_logits = None
+        debug = {"z_main": z_main}
+
         # AUX/GATE: confidence-derived class-wise view weighting
-        z_ol = self.view_classifier(f4_ol)
-        z_sd = self.view_classifier(f4_sd)
-        conf = torch.stack([torch.abs(torch.sigmoid(z_ol) - 0.5), torch.abs(torch.sigmoid(z_sd) - 0.5)], dim=1)
-        weights = F.softmax(conf, dim=1)
-        w_ol, w_sd = weights[:, 0, :], weights[:, 1, :]
-        z_gate = w_ol * z_ol + w_sd * z_sd
+        if self.use_aux_gate:
+            z_ol = self.view_classifier(f4_ol)
+            z_sd = self.view_classifier(f4_sd)
+            conf = torch.stack([torch.abs(torch.sigmoid(z_ol) - 0.5), torch.abs(torch.sigmoid(z_sd) - 0.5)], dim=1)
+            weights = F.softmax(conf, dim=1)
+            w_ol, w_sd = weights[:, 0, :], weights[:, 1, :]
+            z_gate = w_ol * z_ol + w_sd * z_sd
+            logits = logits + self.logit_gate_scale * z_gate
+            aux_logits = (z_ol, z_sd)
+            debug.update({"z_gate": z_gate, "z_aux_ol": z_ol, "z_aux_sd": z_sd, "w_ol": w_ol, "w_sd": w_sd})
 
         # BiFPN: compact multi-scale support
-        p3 = self.p3_reduce(torch.cat([f2_ol, f2_sd], dim=1))
-        p4 = self.p4_reduce(torch.cat([f3_ol, f3_sd], dim=1))
-        p5 = self.p5_reduce(torch.cat([f4_ol, f4_sd], dim=1))
-        p3, p4, p5 = self.bifpn(p3, p4, p5)
-        z_bi = self.bifpn_classifier(torch.cat([
-            F.adaptive_avg_pool2d(p3, 1).flatten(1),
-            F.adaptive_avg_pool2d(p4, 1).flatten(1),
-            F.adaptive_avg_pool2d(p5, 1).flatten(1),
-        ], dim=1))
+        if self.use_bifpn:
+            p3 = self.p3_reduce(torch.cat([f2_ol, f2_sd], dim=1))
+            p4 = self.p4_reduce(torch.cat([f3_ol, f3_sd], dim=1))
+            p5 = self.p5_reduce(torch.cat([f4_ol, f4_sd], dim=1))
+            p3, p4, p5 = self.bifpn(p3, p4, p5)
+            z_bi = self.bifpn_classifier(torch.cat([
+                F.adaptive_avg_pool2d(p3, 1).flatten(1),
+                F.adaptive_avg_pool2d(p4, 1).flatten(1),
+                F.adaptive_avg_pool2d(p5, 1).flatten(1),
+            ], dim=1))
+            logits = logits + self.fpn_logit_scale * z_bi
+            debug["z_bi"] = z_bi
 
-        logits = z_main + self.logit_gate_scale * z_gate + self.fpn_logit_scale * z_bi
-
-        aux_logits = (z_ol, z_sd)
         if return_debug:
-            return logits, aux_logits, {
-                "z_main": z_main,
-                "z_gate": z_gate,
-                "z_bi": z_bi,
-                "w_ol": w_ol,
-                "w_sd": w_sd,
-                "final_probs": torch.sigmoid(logits),
-            }
+            debug["final_logits"] = logits
+            debug["final_probs"] = torch.sigmoid(logits)
+            if self.use_aux_gate:
+                debug["lambda_gate"] = self.logit_gate_scale.reshape(1)
+            if self.use_bifpn:
+                debug["lambda_bi"] = self.fpn_logit_scale.reshape(1)
+            return logits, aux_logits, debug
         return logits, aux_logits
+
+
+# Backward-compatible import for checkpoints/scripts from the first public release.
+FullModel = HASNet

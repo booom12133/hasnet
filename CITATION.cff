@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the associated manuscript."
+title: "HASNet: Dual-View X-ray Multi-Label Recognition"
+type: software
+version: 0.2.0
+authors:
+  - given-names: Huizhen
+    family-names: Jia
+  - given-names: Cailong
+    family-names: Zhou
+  - given-names: Peng
+    family-names: Fu
+  - given-names: Tonghan
+    family-names: Wang
+    email: thwang@ecut.edu.cn
+repository-code: "https://github.com/booom12133/hasnet"
+license: MIT
+preferred-citation:
+  type: article
+  title: "Dual-View X-ray Multi-Label Recognition via Role-Separated Cross-View Fusion and Decision-Level Refinement"
+  authors:
+    - given-names: Huizhen
+      family-names: Jia
+    - given-names: Cailong
+      family-names: Zhou
+    - given-names: Peng
+      family-names: Fu
+    - given-names: Tonghan
+      family-names: Wang
+  journal: "Pattern Analysis and Applications"

@@ -1,0 +1,7 @@
+base: ../full_convnext.yaml
+name: baseline_sd_only
+model:
+  name: single_view
+  backbone: convnext
+  pretrained: true
+  view: sd
