@@ -49,7 +49,7 @@ remains 64 when `NPROC_PER_NODE=1`.
 |---|---|
 | Config | `configs/paper/full_convnext_ldxray.yaml` |
 | Launcher | `scripts/run_ldxray.sh` |
-| Classes | 12: MP, OL, PC1, PC2, LA, GL, TA, BL, NL, CO, UM, CG |
+| Classes / model-output order | 12: MP, OL, PC1, LA, GL, PC2, TA, BL, CO, NL, UM, CG |
 | Split sizes | 99,133 train / 11,015 validation / 36,849 test |
 | Input | synchronized OL/SD, 256×256 |
 | Epochs / global batch | 60 / 64 |
@@ -64,7 +64,7 @@ remains 64 when `NPROC_PER_NODE=1`.
 
 The LDXray test split is the official test split. Split seed 42 applies only to
 the iterative 9:1 train/validation partition and is unrelated to model training
-seed 3408. Bounding boxes are not used as supervision.
+seed 3408. Bounding boxes are not used as supervision.Table 3 of the paper uses a presentation-only class reorder; see `splits/ldxray/README.md` for the mapping.
 
 ## Reproducibility note
 
