@@ -13,7 +13,7 @@ from torchvision import transforms
 from torchvision.transforms import functional as TF
 from timm.data import create_transform
 
-from hasnet.constants import CLASS_NAMES, DVXRAY_MEAN, DVXRAY_STD
+from hasnet.constants import DVXRAY_MEAN, DVXRAY_STD
 
 
 @dataclass(frozen=True)
@@ -39,7 +39,7 @@ class Perturbation:
 
 
 class DvXrayDataset(Dataset):
-    """Read DvXray split files formatted as OL#SD#multi_hot#OL_boxes#SD_boxes."""
+    """Read paired X-ray manifests formatted as OL#SD#multi_hot#OL_boxes#SD_boxes."""
 
     def __init__(
         self,
@@ -48,6 +48,7 @@ class DvXrayDataset(Dataset):
         train: bool = True,
         data_root: str | Path = ".",
         perturbation: Perturbation | None = None,
+        num_classes: int = 15,
     ):
         self.split_file = Path(split_file)
         self.data_root = Path(data_root)
@@ -55,6 +56,7 @@ class DvXrayDataset(Dataset):
             self.lines = [line.strip() for line in f if line.strip()]
         self.transform = build_transform(train, img_size)
         self.train = train
+        self.num_classes = int(num_classes)
         self.perturbation = perturbation or Perturbation()
         if train and self.perturbation.kind != "clean":
             raise ValueError("Paper robustness perturbations are evaluation-only")
@@ -73,14 +75,14 @@ class DvXrayDataset(Dataset):
         ol_path = self._resolve_path(parts[0].strip())
         sd_path = self._resolve_path(parts[1].strip())
         labels = np.array([int(v) for v in parts[2].split(",")], dtype=np.float32)
-        if labels.shape != (len(CLASS_NAMES),) or not np.isin(labels, [0, 1]).all():
+        if labels.shape != (self.num_classes,) or not np.isin(labels, [0, 1]).all():
             raise ValueError(
-                f"Expected {len(CLASS_NAMES)} binary labels at line {idx + 1}, got {parts[2]!r}"
+                f"Expected {self.num_classes} binary labels at line {idx + 1}, got {parts[2]!r}"
             )
         if not ol_path.is_file() or not sd_path.is_file():
             missing = ol_path if not ol_path.is_file() else sd_path
             raise FileNotFoundError(
-                f"Image not found: {missing}. Set data.root so split paths resolve to data/DvXray/."
+                f"Image not found: {missing}. Set data.root so manifest paths resolve correctly."
             )
         with Image.open(ol_path) as image:
             image_ol = image.convert("RGB")

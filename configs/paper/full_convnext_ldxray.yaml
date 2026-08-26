@@ -1,14 +1,15 @@
-name: hasnet_full_convnext
-seed: 3407
+name: hasnet_full_convnext_ldxray
+seed: 3408
 
 data:
-  dataset: dvxray
+  dataset: ldxray
   root: .
   splits:
-    train: splits/dvxray/train.txt
-    val: splits/dvxray/val.txt
-    test: splits/dvxray/test.txt
-  num_classes: 15
+    train: splits/ldxray/train.txt
+    val: splits/ldxray/val.txt
+    test: splits/ldxray/test.txt
+  num_classes: 12
+  class_names: [MP, OL, PC1, LA, GL, PC2, TA, BL, CO, NL, UM, CG]
   image_size: 256
   num_workers: 32
   pin_memory: true
@@ -44,14 +45,15 @@ train:
   grad_clip: 5.0
   amp: true
   deterministic: true
-  drop_last: true
+  drop_last: false
   ema:
     enabled: true
     decay: 0.9999
     warmup_updates: 2000
   scheduler:
     name: paper_v1
-    warmup_epochs: 6
+    warmup_epochs: 0
+    warmup_updates: 1050
     eta_min_ratio: 0.01
 
 evaluation:

@@ -29,9 +29,10 @@ def main() -> None:
     image_ol = torch.randn(1, 3, size, size, device=device)
     image_sd = torch.randn(1, 3, size, size, device=device)
     if config["model"]["name"] == "single_view":
-        flops, thop_params = profile(model, inputs=(image_ol,), verbose=False)
+        macs, thop_params = profile(model, inputs=(image_ol,), verbose=False)
     else:
-        flops, thop_params = profile(model, inputs=(image_ol, image_sd), verbose=False)
+        macs, thop_params = profile(model, inputs=(image_ol, image_sd), verbose=False)
+    flops = 2 * macs
     params = sum(parameter.numel() for parameter in model.parameters())
     trainable_params = sum(
         parameter.numel() for parameter in model.parameters() if parameter.requires_grad
@@ -42,12 +43,14 @@ def main() -> None:
         "parameters_M": params / 1e6,
         "trainable_parameters": int(trainable_params),
         "thop_module_parameters": int(thop_params),
+        "MACs": int(macs),
+        "MACs_G": macs / 1e9,
         "FLOPs": int(flops),
         "FLOPs_G": flops / 1e9,
         "image_size": size,
         "batch_size": 1,
         "counts_both_views": config["model"]["name"] != "single_view",
-        "note": "FLOPs use THOP; parameter totals use model.parameters() so standalone nn.Parameter values are included.",
+        "note": "THOP reports MACs. FLOPs use 1 MAC = 2 FLOPs. Parameter totals use model.parameters() so standalone nn.Parameter values are included.",
     }
     print(json.dumps(payload, indent=2))
     if args.output:

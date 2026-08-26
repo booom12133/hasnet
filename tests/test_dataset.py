@@ -4,7 +4,10 @@ import numpy as np
 import torch
 from PIL import Image
 
+from hasnet.config import load_config
 from hasnet.data import DvXrayDataset, Perturbation
+from hasnet.distributed import DistributedContext
+from hasnet.engine import make_loader
 
 
 def _make_fixture(tmp_path: Path) -> Path:
@@ -50,3 +53,58 @@ def test_blur_uses_requested_view_only(tmp_path):
     )[0]
     assert torch.equal(clean["image_ol"], blurred["image_ol"])
     assert not torch.equal(clean["image_sd"], blurred["image_sd"])
+
+
+def test_ldxray_manifest_uses_twelve_label_vector(tmp_path):
+    image_dir = tmp_path / "dataset" / "train_A"
+    paired_dir = tmp_path / "dataset" / "train_B"
+    image_dir.mkdir(parents=True)
+    paired_dir.mkdir(parents=True)
+    image = Image.new("RGB", (32, 32), color=(64, 96, 128))
+    image.save(image_dir / "000000.jpg")
+    image.save(paired_dir / "000000.jpg")
+    split = tmp_path / "ldxray.txt"
+    split.write_text(
+        "dataset/train_A/000000.jpg#dataset/train_B/000000.jpg#"
+        + ",".join(["1"] + ["0"] * 11)
+        + "#[]#[]\n",
+        encoding="utf-8",
+    )
+    sample = DvXrayDataset(
+        split, img_size=32, train=False, data_root=tmp_path, num_classes=12
+    )[0]
+    assert sample["target"].shape == (12,)
+
+
+def test_train_drop_last_reaches_distributed_sampler_and_loader(tmp_path):
+    context = DistributedContext(
+        distributed=True,
+        rank=0,
+        world_size=2,
+        local_rank=0,
+        device=torch.device("cpu"),
+    )
+    cases = (
+        ("configs/paper/full_convnext.yaml", 15, True),
+        ("configs/paper/full_convnext_ldxray.yaml", 12, False),
+    )
+    for config_path, num_classes, expected_drop_last in cases:
+        manifest = tmp_path / f"{num_classes}_classes.txt"
+        labels = ",".join(["1"] + ["0"] * (num_classes - 1))
+        manifest.write_text(
+            "".join(
+                f"view_a_{index}.png#view_b_{index}.png#{labels}#[]#[]\n"
+                for index in range(5)
+            ),
+            encoding="utf-8",
+        )
+        config = load_config(config_path)
+        config["data"]["splits"]["train"] = str(manifest)
+        config["data"]["num_workers"] = 0
+        config["data"]["persistent_workers"] = False
+        loader, sampler = make_loader(config, "train", context=context, train=True)
+        assert sampler is not None
+        assert sampler.drop_last is expected_drop_last
+        assert loader.drop_last is expected_drop_last
+        expected_total_size = 4 if expected_drop_last else 6
+        assert sampler.total_size == expected_total_size

@@ -1,97 +1,73 @@
-# Reproducibility map
+# Released configuration map
 
-## Protocol invariants
+This public release supports the Full HASNet training and evaluation path on
+DvXray and on the converted LDXray image-level task. Dataset images and model
+checkpoints are not included.
 
-All retrained configurations inherit from
-`configs/paper/full_convnext.yaml`. An ablation YAML changes only the named
-architectural switch. The data loader, split, optimizer, schedule, loss,
-augmentation, EMA, evaluation metrics, and checkpoint selection remain shared.
+## Shared model
 
-| Item | Release setting |
-|---|---|
-| Dataset | DvXray |
-| Split sizes | 11,200 train / 3,200 validation / 1,600 test |
-| Input | synchronized OL/SD, 256×256 |
-| Default backbone | shared ConvNeXt-Tiny |
-| Hardware protocol | DDP, 2× RTX 4090 |
-| Epochs / global batch | 60 / 64 |
-| Optimizer | AdamW |
-| Initial LR / weight decay | 7e-5 / 1e-3 |
-| Schedule | 6-epoch linear warmup + epoch-wise cosine |
-| AMP / EMA | enabled / enabled |
-| Loss | ASL (gamma-=4, gamma+=0, clip=0.05) |
-| Auxiliary alpha | 0.7 |
-| BiFPN | 1 layer, 256 channels |
-| TTA | disabled |
-| Canonical release seeds | 3407, 3408, 3409 |
-| Model selection | highest validation mAP, beginning at epoch 1 |
-
-OL and SD augmentations are sampled independently, matching the experiment
-implementation. The global batch of 64 becomes 32 samples per process under
-the two-GPU protocol. Worker count is likewise divided across processes.
-
-## Configuration-to-table map
-
-| Manuscript analysis | Configurations / command |
-|---|---|
-| Full ConvNeXt-Tiny | `configs/paper/full_convnext.yaml` |
-| Cross-backbone | `configs/paper/backbones/*.yaml` |
-| Core three-stage ablation | `configs/paper/ablations/core/*.yaml` |
-| DCAF ablation | `configs/paper/ablations/dcaf/*.yaml` |
-| SRC ablation | `configs/paper/ablations/src/*.yaml` |
-| OL/SD/Plain/Feature Fusion | `configs/paper/baselines/*.yaml` |
-| Late Fusion Avg/Max | `scripts/late_fusion.py` |
-| Temperature Scaling | `scripts/calibrate.py` |
-| Reliability diagram | `scripts/reliability_diagram.py` |
-| One-view degradation | `scripts/robustness.py` |
-| Params/FLOPs | `scripts/profile_model.py` |
-
-The core-ablation `base_fusion.yaml` is the bare CVFUSE projection core with
-both CoordAtt and LKA disabled. It is intentionally identical in architecture
-to the `CVFUSE only` row of the internal DCAF ablation; the independently
-trained rows may differ slightly because results are averaged across runs.
-
-## Metric definitions
-
-For each of 15 classes, average precision is computed from the complete ranked
-list. mAP is the arithmetic mean of the 15 class AP values.
-
-Macro-Brier, Macro-NLL, and Macro-ECE treat every label as one independent
-binary problem. Each value is first computed per class and then averaged over
-classes. ECE uses 10 equal-width bins over the complete probability range
-`[0,1]`; it does not discard probabilities below 0.5.
-
-Temperature scaling cannot be fitted and scored on the same observations.
-The release supports either:
-
-1. `heldout`: fit on one prediction archive and evaluate another; or
-2. `crossfit`: five-fold out-of-fold scaling for a validation-only comparison.
-
-The protocol and fitted temperatures are stored in the output JSON.
-
-## Robustness definitions
-
-The five retained settings are clean, OL missing, SD missing, OL blur, and SD
-blur. Missing replaces the selected normalized model-input tensor with zeros.
-Blur applies `torchvision.transforms.functional.gaussian_blur` with a fixed
-21×21 kernel and sigma 5 to the selected normalized tensor. Retention is:
+Both released configurations build the same Full HASNet architecture:
 
 ```text
-100 × perturbed mAP / clean mAP
+shared ConvNeXt-Tiny dual stream
+  -> VSC
+  -> per-view CoordAtt
+  -> CVFUSE
+  -> LKA
+  -> SRC-Head (MAIN + AUX/GATE + one-layer 256-channel BiFPN)
 ```
 
-## Minimum evidence for a tagged release
+The auxiliary gate and BiFPN logit coefficients are initialized in
+`hasnet/models/hasnet.py` as `0.0` and `0.1`, respectively.
 
-For every headline model or ablation, archive:
+## DvXray
 
-- the three `resolved_config.yaml` files;
-- three `summary.json` files and the aggregate mean/std CSV;
-- `best.pt` or a stable external weight URL with SHA-256;
-- split SHA-256 values;
-- the Git commit hash;
-- Params/FLOPs JSON;
-- exported validation/test predictions needed for calibration or robustness.
+| Item | Released setting |
+|---|---|
+| Config | `configs/paper/full_convnext.yaml` |
+| Launcher | `scripts/run_full.sh` |
+| Classes | 15 |
+| Split sizes | 11,200 train / 3,200 validation / 1,600 test |
+| Input | synchronized OL/SD, 256×256 |
+| Epochs / global batch | 60 / 64 |
+| Optimizer | AdamW, LR 7e-5, weight decay 1e-3 |
+| Schedule | 6-epoch linear warmup + epoch-wise cosine, eta_min=LR/100 |
+| AMP / EMA | enabled / enabled |
+| EMA | decay 0.9999, warmup 2,000 updates |
+| Loss | ASL (gamma-=4, gamma+=0, clip=0.05), auxiliary alpha 0.7 |
+| Seed / deterministic | 3407 / enabled |
+| TTA | disabled |
+| Selection | highest validation mAP from epoch 32 onward |
 
-Do not replace a missing run with an inferred per-seed value. Results under
-`results/paper/` are a transcription of the manuscript tables; generated
-evidence belongs under `results/generated/`.
+OL and SD augmentations are sampled independently. With two processes, the
+global batch of 64 becomes 32 synchronized pairs per process. The global batch
+remains 64 when `NPROC_PER_NODE=1`.
+
+## LDXray
+
+| Item | Released setting |
+|---|---|
+| Config | `configs/paper/full_convnext_ldxray.yaml` |
+| Launcher | `scripts/run_ldxray.sh` |
+| Classes | 12: MP, OL, PC1, PC2, LA, GL, TA, BL, NL, CO, UM, CG |
+| Split sizes | 99,133 train / 11,015 validation / 36,849 test |
+| Input | synchronized OL/SD, 256×256 |
+| Epochs / global batch | 60 / 64 |
+| Optimizer | AdamW, LR 7e-5, weight decay 1e-3 |
+| Schedule | 1,050-update linear warmup + epoch-wise cosine, eta_min=LR/100 |
+| AMP / EMA | enabled / enabled |
+| EMA | decay 0.9999, warmup 2,000 updates |
+| Loss | ASL (gamma-=4, gamma+=0, clip=0.05), auxiliary alpha 0.7 |
+| Released seed / deterministic | 3408 / enabled |
+| TTA | disabled |
+| Selection | highest validation mAP from epoch 32 onward |
+
+The LDXray test split is the official test split. Split seed 42 applies only to
+the iterative 9:1 train/validation partition and is unrelated to model training
+seed 3408. Bounding boxes are not used as supervision.
+
+## Reproducibility note
+
+The launchers fix the released seeds and deterministic execution settings.
+Exact numerical identity is not guaranteed across different PyTorch, CUDA,
+cuDNN, driver, and GPU combinations.

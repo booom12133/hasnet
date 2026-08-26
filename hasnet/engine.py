@@ -80,7 +80,9 @@ def make_loader(
         train=train,
         data_root=config["data"]["root"],
         perturbation=perturbation,
+        num_classes=int(config["data"]["num_classes"]),
     )
+    sampler_drop_last = train and bool(config["train"].get("drop_last", True))
     sampler = (
         DistributedSampler(
             dataset,
@@ -88,7 +90,7 @@ def make_loader(
             rank=rank,
             shuffle=train,
             seed=int(config["seed"]),
-            drop_last=train,
+            drop_last=sampler_drop_last,
         )
         if context and context.distributed
         else None
@@ -106,7 +108,7 @@ def make_loader(
             bool(config["data"].get("persistent_workers", True))
             and int(config["data"]["num_workers"]) // world_size > 0
         ),
-        drop_last=train,
+        drop_last=sampler_drop_last,
         worker_init_fn=seed_worker,
         generator=generator,
     )

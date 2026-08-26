@@ -40,7 +40,7 @@ def main() -> None:
     parser.add_argument("--fit-predictions", required=True)
     parser.add_argument("--eval-predictions", default=None)
     parser.add_argument("--folds", type=int, default=5)
-    parser.add_argument("--seed", type=int, default=3408)
+    parser.add_argument("--seed", type=int, default=3407)
     parser.add_argument("--num-bins", type=int, default=10)
     parser.add_argument("--output-dir", default="outputs/calibration")
     args = parser.parse_args()

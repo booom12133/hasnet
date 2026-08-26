@@ -46,13 +46,26 @@ def validate_config(config: dict[str, Any]) -> None:
             raise ValueError(f"Missing configuration section: {section}")
     if config["model"].get("name") not in {"hasnet", "single_view", "plain", "feature_fusion"}:
         raise ValueError(f"Unknown model.name: {config['model'].get('name')}")
-    if int(config["data"].get("num_classes", 15)) != 15:
-        raise ValueError("DvXray release expects exactly 15 labels")
+    dataset = str(config["data"].get("dataset", "dvxray")).lower()
+    expected_classes = {"dvxray": 15, "ldxray": 12}
+    if dataset not in expected_classes:
+        raise ValueError(f"Unknown data.dataset: {dataset}")
+    num_classes = int(config["data"].get("num_classes", expected_classes[dataset]))
+    if num_classes != expected_classes[dataset]:
+        raise ValueError(
+            f"{dataset} expects exactly {expected_classes[dataset]} labels, got {num_classes}"
+        )
+    class_names = config["data"].get("class_names")
+    if class_names is not None and len(class_names) != num_classes:
+        raise ValueError("data.class_names length must equal data.num_classes")
     global_batch = int(config["train"]["global_batch_size"])
     if global_batch <= 0:
         raise ValueError("train.global_batch_size must be positive")
     if int(config["train"]["epochs"]) <= 0:
         raise ValueError("train.epochs must be positive")
+    selection_start = int(config["evaluation"].get("selection_start_epoch", 1))
+    if not 1 <= selection_start <= int(config["train"]["epochs"]):
+        raise ValueError("evaluation.selection_start_epoch must fall within training epochs")
 
 
 def config_hash(config: dict[str, Any]) -> str:

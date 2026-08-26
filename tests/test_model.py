@@ -31,3 +31,15 @@ def test_vsc_is_identity_at_initialization():
     module = ViewStatCalibrator(8)
     tensor = torch.randn(2, 8, 5, 5)
     assert torch.equal(module(tensor), tensor)
+
+
+def test_ldxray_full_model_outputs_twelve_logits():
+    config = load_config("configs/paper/full_convnext_ldxray.yaml")
+    model = build_model(config, pretrained=False).eval()
+    with torch.inference_mode():
+        logits, auxiliary = model(
+            torch.randn(1, 3, 64, 64), torch.randn(1, 3, 64, 64)
+        )
+    assert logits.shape == (1, 12)
+    assert auxiliary[0].shape == (1, 12)
+    assert auxiliary[1].shape == (1, 12)

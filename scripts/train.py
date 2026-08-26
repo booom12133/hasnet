@@ -133,6 +133,7 @@ def main() -> None:
             epochs=int(config["train"]["epochs"]),
             steps_per_epoch=len(train_loader),
             warmup_epochs=int(config["train"]["scheduler"]["warmup_epochs"]),
+            warmup_updates=config["train"]["scheduler"].get("warmup_updates"),
             eta_min_ratio=float(config["train"]["scheduler"]["eta_min_ratio"]),
         )
         amp_enabled = bool(config["train"]["amp"]) and context.device.type == "cuda"
@@ -170,6 +171,9 @@ def main() -> None:
             for split in ("train", "val", "test")
         }
         epochs = int(config["train"]["epochs"])
+        selection_start_epoch = int(
+            config["evaluation"].get("selection_start_epoch", 1)
+        )
         for epoch in range(start_epoch, epochs):
             if train_sampler is not None:
                 train_sampler.set_epoch(epoch)
@@ -198,8 +202,10 @@ def main() -> None:
                     description=f"val {epoch + 1}/{epochs}",
                 )
                 current_map = float(val_result.metrics["mAP"])
-                improved = current_map > best_map
-                best_map = max(best_map, current_map)
+                eligible_for_selection = epoch + 1 >= selection_start_epoch
+                improved = eligible_for_selection and current_map > best_map
+                if eligible_for_selection:
+                    best_map = max(best_map, current_map)
                 state = build_checkpoint(
                     model=model,
                     ema=ema,

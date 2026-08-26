@@ -15,3 +15,13 @@ def test_full_parameter_count_matches_manuscript_rounding():
     parameters = sum(parameter.numel() for parameter in model.parameters())
     assert parameters == 30_970_211
     assert round(parameters / 1e6, 2) == 30.97
+
+
+def test_ldxray_config_uses_twelve_classes_and_fixed_manifests():
+    config = load_config("configs/paper/full_convnext_ldxray.yaml")
+    assert config["data"]["dataset"] == "ldxray"
+    assert config["data"]["num_classes"] == 12
+    assert config["data"]["class_names"] == [
+        "MP", "OL", "PC1", "PC2", "LA", "GL", "TA", "BL", "NL", "CO", "UM", "CG"
+    ]
+    assert config["train"]["scheduler"]["warmup_updates"] == 1050

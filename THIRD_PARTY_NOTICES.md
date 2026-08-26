@@ -14,7 +14,6 @@ the terms of the official DvXray repository.
 
 Literature comparator implementations (CHR, AHCR, DAGNet, SXMNet, DOAM,
 MVCNN, and GVCNN) are not copied into this MIT-licensed repository. Their
-papers and upstream resources are listed in `docs/THIRD_PARTY_BASELINES.md`.
-The `hasnet.models.baselines` module contains only the original controls
-defined directly in the HASNet manuscript: single-view, Plain, and Feature
-Fusion.
+original publications and upstream repositories retain their own terms. The
+`hasnet.models.baselines` module contains only the original controls defined
+directly in the HASNet manuscript: single-view, Plain, and Feature Fusion.

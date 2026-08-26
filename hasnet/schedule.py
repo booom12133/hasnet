@@ -21,13 +21,18 @@ class PaperV1Schedule:
         epochs: int,
         steps_per_epoch: int,
         warmup_epochs: int = 6,
+        warmup_updates: int | None = None,
         eta_min_ratio: float = 0.01,
     ):
         self.optimizer = optimizer
         self.epochs = int(epochs)
         self.steps_per_epoch = int(steps_per_epoch)
         self.warmup_epochs = int(warmup_epochs)
-        self.warmup_steps = self.warmup_epochs * self.steps_per_epoch
+        self.warmup_steps = (
+            int(warmup_updates)
+            if warmup_updates is not None
+            else self.warmup_epochs * self.steps_per_epoch
+        )
         self.warmup_step = 0
         self.base_lrs = [group["lr"] for group in optimizer.param_groups]
         self.cosine = CosineAnnealingLR(
