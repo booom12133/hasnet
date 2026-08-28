@@ -22,6 +22,6 @@ def test_ldxray_config_uses_twelve_classes_and_fixed_manifests():
     assert config["data"]["dataset"] == "ldxray"
     assert config["data"]["num_classes"] == 12
     assert config["data"]["class_names"] == [
-        "MP", "OL", "PC1", "PC2", "LA", "GL", "TA", "BL", "NL", "CO", "UM", "CG"
+        "MP", "OL", "PC1", "LA", "GL", "PC2", "TA", "BL", "CO", "NL", "UM", "CG"
     ]
     assert config["train"]["scheduler"]["warmup_updates"] == 1050

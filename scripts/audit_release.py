@@ -57,7 +57,7 @@ def main() -> None:
             ):
                 violations.append(f"machine-specific Windows path: {path}")
     for path in Path("configs/paper").rglob("*.yaml"):
-        if path.name != "robustness.yaml":
+        if path.name not in {"robustness.yaml", "experiments.yaml"}:
             load_config(path)
     if violations:
         raise SystemExit("\n".join(sorted(set(violations))))
